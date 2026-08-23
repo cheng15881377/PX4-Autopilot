@@ -47,6 +47,8 @@ add_custom_target(upload
 	COMMAND rsync -arh --progress
 			${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
 			${PX4_SOURCE_DIR}/posix-configs/embedfire/rk3588_mc.config
+			${PX4_SOURCE_DIR}/posix-configs/embedfire/run_px4.sh
+			${PX4_SOURCE_DIR}/posix-configs/embedfire/stop_px4.sh
 			${PX4_BINARY_DIR}/etc
 			"${AUTOPILOT_USER}@${AUTOPILOT_HOST}:/home/${AUTOPILOT_USER}/px4"
 	DEPENDS px4

@@ -3,14 +3,14 @@
 # EmbedFire LubanCat RK3588 prototype sensor and actuator initialization.
 #------------------------------------------------------------------------------
 
-# Prototype default: ICM42688P on /dev/spidev0.0 with no board rotation.
-if ! icm42688p start -s -b 0 -c 0 -R 0
+# Yahboom MCU-based IMU on /dev/i2c-3, address 0x23, no board rotation.
+if ! yahboom_imu start -X -b 3 -a 0x23 -R 0
 then
-	echo "ICM42688P not found on /dev/spidev0.0"
+	echo "Yahboom IMU not found on /dev/i2c-3 address 0x23"
 fi
 
-# Prototype default: PCA9685 on /dev/i2c-1 at address 0x40.
-if ! pca9685_pwm_out start -b 1 -a 0x40
+# Keep actuator traffic on a separate I2C controller.
+if ! pca9685_pwm_out start -b 4 -a 0x40
 then
-	echo "PCA9685 not found on /dev/i2c-1 address 0x40"
+	echo "PCA9685 not found on /dev/i2c-4 address 0x40"
 fi

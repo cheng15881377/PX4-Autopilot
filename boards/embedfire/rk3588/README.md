@@ -10,12 +10,13 @@ kernel's device tree before real hardware is used:
 
 | Function | Prototype mapping |
 | --- | --- |
-| IMU | ICM42688P on `/dev/spidev0.0` |
-| Motor output | PCA9685 on `/dev/i2c-1`, address `0x40` |
-| RC input | `/dev/ttyS4` |
+| IMU | Yahboom I2C IMU on `/dev/i2c-3`, address `0x23` |
+| Motor output | PCA9685 on `/dev/i2c-4`, address `0x40` |
+| RC input | UART1 on `/dev/ttyS1` (receiver protocol dependent) |
 
-Update `src/spi.cpp`, `src/i2c.cpp`, `init/rc.board_sensors`, and
-`init/rc.board_extras` if the LubanCat exposes different device numbers.
+The LubanCat-5 V2 boot configuration must enable the `i2c3-m0`, `i2c4-m3`,
+and `uart1-m1` overlays. Update `src/i2c.cpp`, `init/rc.board_sensors`, and
+`init/rc.board_extras` if the target kernel exposes different device numbers.
 
 ## Cross-compile
 
@@ -43,11 +44,14 @@ make embedfire_rk3588_default upload
 
 ## Run on CPU 7
 
-On the LubanCat, run PX4 with every inherited thread affined to logical CPU 7:
+The upload includes helper scripts that start PX4 with every inherited thread
+affined to logical CPU 7 and completely stop both running and suspended PX4
+processes:
 
 ```sh
 cd /home/cat/px4
-sudo taskset -c 7 ./bin/px4 -s rk3588_mc.config
+./run_px4.sh
+./stop_px4.sh
 ```
 
 For lower scheduling jitter, isolate CPU 7 in the target kernel command line

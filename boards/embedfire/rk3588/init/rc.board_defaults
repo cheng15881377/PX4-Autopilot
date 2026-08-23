@@ -3,11 +3,12 @@
 # EmbedFire LubanCat RK3588 prototype defaults.
 #------------------------------------------------------------------------------
 
-# The initial prototype has no magnetometer or barometer.
-param set-default SYS_HAS_MAG 0
-param set-default SYS_HAS_BARO 0
-param set-default EKF2_MAG_TYPE 5
+# The Yahboom module publishes accelerometer, gyroscope, magnetometer, and
+# barometer data. PX4 performs its own attitude and navigation fusion.
+param set-default SYS_HAS_MAG 1
+param set-default SYS_HAS_BARO 1
+param set-default EKF2_MAG_TYPE 0
 
-# Prototype PCA9685 defaults: /dev/i2c-1, address 0x40.
-param set-default PCA9685_EN_BUS 1
+# PCA9685 defaults: /dev/i2c-4, address 0x40.
+param set-default PCA9685_EN_BUS 4
 param set-default PCA9685_I2C_ADDR 64

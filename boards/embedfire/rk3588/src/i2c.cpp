@@ -33,8 +33,9 @@
 
 #include <px4_arch/i2c_hw_description.h>
 
-// Prototype default: /dev/i2c-1. Change this to the bus exposed by the
-// LubanCat device tree before connecting the PCA9685 output board.
+// The 40-pin header exposes I2C3 on pins 3/5 and I2C4 on pins 27/28 when
+// their LubanCat-5 V2 device-tree overlays are enabled.
 constexpr px4_i2c_bus_t px4_i2c_buses[I2C_BUS_MAX_BUS_ITEMS] = {
-	initI2CBusExternal(1),
+	initI2CBusExternal(3),
+	initI2CBusExternal(4),
 };

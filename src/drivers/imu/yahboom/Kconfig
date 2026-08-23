@@ -1,0 +1,5 @@
+menuconfig DRIVERS_IMU_YAHBOOM
+	bool "Yahboom I2C IMU module"
+	default n
+	---help---
+		Enable support for the Yahboom MCU-based I2C IMU module at address 0x23.

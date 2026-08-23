@@ -46,7 +46,7 @@
 
 // Linux exposes the buses through /dev/i2c-* and /dev/spidev*.
 #define CONFIG_I2C 1
-#define PX4_NUMBER_I2C_BUSES 1
+#define PX4_NUMBER_I2C_BUSES 2
 
 #define CONFIG_SPI 1
 
