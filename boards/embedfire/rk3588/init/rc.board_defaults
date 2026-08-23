@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# EmbedFire LubanCat RK3588 prototype defaults.
+#------------------------------------------------------------------------------
+
+# The initial prototype has no magnetometer or barometer.
+param set-default SYS_HAS_MAG 0
+param set-default SYS_HAS_BARO 0
+param set-default EKF2_MAG_TYPE 5
+
+# Prototype PCA9685 defaults: /dev/i2c-1, address 0x40.
+param set-default PCA9685_EN_BUS 1
+param set-default PCA9685_I2C_ADDR 64
