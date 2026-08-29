@@ -10,13 +10,14 @@ kernel's device tree before real hardware is used:
 
 | Function | Prototype mapping |
 | --- | --- |
-| IMU | Yahboom I2C IMU on `/dev/i2c-3`, address `0x23` |
+| IMU | ICM42688P on SPI0 CS0 (`/dev/spidev0.0`) |
 | Motor output | PCA9685 on `/dev/i2c-4`, address `0x40` |
 | RC input | UART1 on `/dev/ttyS1` (receiver protocol dependent) |
 
-The LubanCat-5 V2 boot configuration must enable the `i2c3-m0`, `i2c4-m3`,
-and `uart1-m1` overlays. Update `src/i2c.cpp`, `init/rc.board_sensors`, and
-`init/rc.board_extras` if the target kernel exposes different device numbers.
+The LubanCat-5 V2 boot configuration must enable the `spi0-m1` GPIO chip-select,
+`i2c4-m3`, and `uart1-m1` overlays. Update `src/spi.cpp`, `src/i2c.cpp`,
+`init/rc.board_sensors`, and `init/rc.board_extras` if the target kernel exposes
+different device numbers.
 
 ## Cross-compile
 

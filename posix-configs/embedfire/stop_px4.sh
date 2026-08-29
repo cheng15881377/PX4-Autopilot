@@ -4,6 +4,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PX4_SHUTDOWN="${SCRIPT_DIR}/bin/px4-shutdown"
+PX4_INSTANCE="0"
+PX4_LOCK_FILE="/tmp/px4_lock-${PX4_INSTANCE}"
+PX4_SOCKET_FILE="/tmp/px4-sock-${PX4_INSTANCE}"
 
 if (( EUID == 0 )); then
 	SUDO=()
@@ -47,6 +50,11 @@ zombie_px4_pids()
 	done < <(px4_pids)
 }
 
+cleanup_stale_ipc()
+{
+	"${SUDO[@]}" rm -f -- "${PX4_LOCK_FILE}" "${PX4_SOCKET_FILE}"
+}
+
 wake_supervisor()
 {
 	local px4_pid="$1"
@@ -68,6 +76,8 @@ mapfile -t ACTIVE_PIDS < <(active_px4_pids)
 mapfile -t ZOMBIE_PIDS < <(zombie_px4_pids)
 
 if (( ${#ACTIVE_PIDS[@]} == 0 )); then
+	cleanup_stale_ipc
+
 	if (( ${#ZOMBIE_PIDS[@]} > 0 )); then
 		for pid in "${ZOMBIE_PIDS[@]}"; do
 			wake_supervisor "${pid}"
@@ -109,6 +119,7 @@ for ((attempt = 0; attempt < 80; attempt++)); do
 	mapfile -t ACTIVE_PIDS < <(active_px4_pids)
 
 	if (( ${#ACTIVE_PIDS[@]} == 0 )); then
+		cleanup_stale_ipc
 		echo "PX4 已完全关闭。"
 		exit 0
 	fi
@@ -145,4 +156,5 @@ for pid in "${ZOMBIE_PIDS[@]}"; do
 	wake_supervisor "${pid}"
 done
 
+cleanup_stale_ipc
 echo "PX4 已强制关闭。"

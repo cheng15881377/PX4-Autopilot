@@ -3,10 +3,10 @@
 # EmbedFire LubanCat RK3588 prototype sensor and actuator initialization.
 #------------------------------------------------------------------------------
 
-# Yahboom MCU-based IMU on /dev/i2c-3, address 0x23, no board rotation.
-if ! yahboom_imu start -X -b 3 -a 0x23 -R 0
+# ICM42688P on SPI bus 0, chip select 0 (/dev/spidev0.0), no board rotation.
+if ! icm42688p start -s -b 0 -c 0 -R 0
 then
-	echo "Yahboom IMU not found on /dev/i2c-3 address 0x23"
+	echo "ICM42688P not found on /dev/spidev0.0"
 fi
 
 # Keep actuator traffic on a separate I2C controller.
