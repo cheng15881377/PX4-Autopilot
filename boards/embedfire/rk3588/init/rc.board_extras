@@ -3,13 +3,12 @@
 # EmbedFire LubanCat RK3588 prototype receiver initialization.
 #------------------------------------------------------------------------------
 
-# Prototype default: serial RC receiver on /dev/ttyS1. RC_INPUT_PROTO selects
-# Auto, SBUS, DSM, CRSF, GHST, or another protocol supported by rc_input.
+# ExpressLRS receiver using bidirectional CRSF on UART1 (/dev/ttyS1).
 if [ -c /dev/ttyS1 ]
 then
-	rc_input start -d /dev/ttyS1
+	crsf_rc start -d /dev/ttyS1
 else
-	echo "RC input device /dev/ttyS1 not found"
+	echo "CRSF input device /dev/ttyS1 not found"
 fi
 
 rc_update start

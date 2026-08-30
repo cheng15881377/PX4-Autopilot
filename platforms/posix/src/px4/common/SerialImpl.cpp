@@ -33,12 +33,18 @@
 
 #include <SerialImpl.hpp>
 #include <string.h> // strncpy
-#include <termios.h>
 #include <px4_log.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <poll.h>
 #include <drivers/drv_hrt.h>
+
+#if defined(__PX4_LINUX)
+#include <sys/ioctl.h>
+#include <asm-generic/termbits.h>
+#else
+#include <termios.h>
+#endif
 
 namespace device
 {
@@ -68,6 +74,7 @@ SerialImpl::~SerialImpl()
 
 bool SerialImpl::configure()
 {
+#if !defined(__PX4_LINUX)
 	/* process baud rate */
 	int speed;
 
@@ -127,12 +134,27 @@ bool SerialImpl::configure()
 	}
 
 	struct termios uart_config;
-
 	int termios_state = tcgetattr(_serial_fd, &uart_config);
+
+#else
+
+	// Linux termios only accepts a fixed set of baud-rate constants through
+	// cfsetispeed()/cfsetospeed(). Protocols such as CRSF use 420000 baud, so
+	// configure the numeric baud rate through termios2/BOTHER instead.
+	struct termios2 uart_config {};
+	int termios_state = ioctl(_serial_fd, TCGETS2, &uart_config);
+
+#endif
 
 	/* fill the struct for the new configuration */
 	if (termios_state < 0) {
+
+#if defined(__PX4_LINUX)
+		PX4_ERR("ERR: %d (TCGETS2)", termios_state);
+#else
 		PX4_ERR("ERR: %d (tcgetattr)", termios_state);
+#endif
+
 		return false;
 	}
 
@@ -199,6 +221,20 @@ bool SerialImpl::configure()
 	}
 
 	/* set baud rate */
+#if defined(__PX4_LINUX)
+	uart_config.c_cflag &= ~CBAUD;
+	uart_config.c_cflag |= BOTHER;
+	uart_config.c_ispeed = _baudrate;
+	uart_config.c_ospeed = _baudrate;
+
+	termios_state = ioctl(_serial_fd, TCSETS2, &uart_config);
+
+	if (termios_state < 0) {
+		PX4_ERR("ERR: %d (TCSETS2, baudrate %u)", termios_state, _baudrate);
+		return false;
+	}
+
+#else
 	termios_state = cfsetispeed(&uart_config, speed);
 
 	if (termios_state < 0) {
@@ -219,6 +255,7 @@ bool SerialImpl::configure()
 		PX4_ERR("ERR: %d (tcsetattr)", termios_state);
 		return false;
 	}
+#endif
 
 	return true;
 }
@@ -247,6 +284,8 @@ bool SerialImpl::open()
 	// Configure the serial port
 	if (! configure()) {
 		PX4_ERR("failed to configure %s err: %d", _port, errno);
+		::close(_serial_fd);
+		_serial_fd = -1;
 		return false;
 	}
 
@@ -459,7 +498,11 @@ ssize_t SerialImpl::writeBlocking(const void *buffer, size_t buffer_size, uint32
 void SerialImpl::flush()
 {
 	if (_open) {
+#if defined(__PX4_LINUX)
+		ioctl(_serial_fd, TCFLSH, TCIOFLUSH);
+#else
 		tcflush(_serial_fd, TCIOFLUSH);
+#endif
 	}
 }
 
