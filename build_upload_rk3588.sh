@@ -47,6 +47,7 @@ BUILD_DIR="${SCRIPT_DIR}/build/${PX4_TARGET}"
 STARTUP_CONFIG="${SCRIPT_DIR}/posix-configs/embedfire/rk3588_mc.config"
 RUN_SCRIPT="${SCRIPT_DIR}/posix-configs/embedfire/run_px4.sh"
 STOP_SCRIPT="${SCRIPT_DIR}/posix-configs/embedfire/stop_px4.sh"
+AUTOSTART_SCRIPT="${SCRIPT_DIR}/posix-configs/embedfire/install_px4_autostart.sh"
 REMOTE_DIR="/home/${TARGET_USER}/px4"
 
 run_docker()
@@ -94,7 +95,7 @@ printf -v build_command 'cd %q && make %q' "${CONTAINER_SOURCE_DIR}" "${PX4_TARG
 run_docker exec "${BUILD_CONTAINER}" bash -lc "${build_command}"
 
 if [[ ! -x "${BUILD_DIR}/bin/px4" || ! -d "${BUILD_DIR}/etc" || ! -f "${STARTUP_CONFIG}"
-	|| ! -x "${RUN_SCRIPT}" || ! -x "${STOP_SCRIPT}" ]]; then
+	|| ! -x "${RUN_SCRIPT}" || ! -x "${STOP_SCRIPT}" || ! -x "${AUTOSTART_SCRIPT}" ]]; then
 	echo "错误：编译产物不完整，停止上传。" >&2
 	exit 1
 fi
@@ -106,6 +107,7 @@ rsync -arh --progress \
 	"${STARTUP_CONFIG}" \
 	"${RUN_SCRIPT}" \
 	"${STOP_SCRIPT}" \
+	"${AUTOSTART_SCRIPT}" \
 	"${BUILD_DIR}/etc" \
 	"${TARGET_USER}@${TARGET_IP}:${REMOTE_DIR}"
 
@@ -116,3 +118,5 @@ echo "  cd ${REMOTE_DIR}"
 echo "  ./run_px4.sh"
 echo "鲁班猫完全关闭命令："
 echo "  ./stop_px4.sh"
+echo "首次安装开机自动启动："
+echo "  ./install_px4_autostart.sh"

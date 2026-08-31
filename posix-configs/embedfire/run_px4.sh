@@ -6,6 +6,33 @@ set -euo pipefail
 PX4_CPU="7"
 PX4_INSTANCE="0"
 
+usage()
+{
+	cat <<EOF
+用法：
+  $0             前台启动PX4并进入pxh交互控制台
+  $0 --daemon    后台服务模式，不启动pxh控制台
+EOF
+}
+
+PX4_DAEMON=false
+
+case "${1:-}" in
+	"")
+		;;
+	--daemon)
+		PX4_DAEMON=true
+		;;
+	-h | --help)
+		usage
+		exit 0
+		;;
+	*)
+		usage >&2
+		exit 2
+		;;
+esac
+
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PX4_BINARY="${SCRIPT_DIR}/bin/px4"
 PX4_CONFIG="${SCRIPT_DIR}/rk3588_mc.config"
@@ -61,5 +88,14 @@ fi
 cd "${SCRIPT_DIR}"
 
 echo "启动 PX4：CPU ${PX4_CPU}，工作目录 ${SCRIPT_DIR}"
-echo "正常退出请按 Ctrl+C；不要使用 Ctrl+Z。"
-exec "${SUDO[@]}" taskset -c "${PX4_CPU}" "${PX4_BINARY}" -i "${PX4_INSTANCE}" -s "${PX4_CONFIG}"
+
+PX4_ARGUMENTS=(-i "${PX4_INSTANCE}" -s "${PX4_CONFIG}")
+
+if [[ "${PX4_DAEMON}" == "true" ]]; then
+	echo "运行方式：systemd守护模式（pxh控制台已关闭）"
+	PX4_ARGUMENTS=(-d "${PX4_ARGUMENTS[@]}")
+else
+	echo "正常退出请按 Ctrl+C；不要使用 Ctrl+Z。"
+fi
+
+exec "${SUDO[@]}" taskset -c "${PX4_CPU}" "${PX4_BINARY}" "${PX4_ARGUMENTS[@]}"
