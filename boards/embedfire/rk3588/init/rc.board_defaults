@@ -12,6 +12,9 @@ param set-default EKF2_MAG_TYPE 5
 # PCA9685 defaults: /dev/i2c-4, address 0x40.
 param set-default PCA9685_EN_BUS 4
 param set-default PCA9685_I2C_ADDR 64
+param set-default PCA9685_CH_COUNT 4
+param set-default PCA9685_PWM_FREQ 400
+param set-default PCA9685_SCHD_HZ 400
 
 # ExpressLRS CRSF receiver on UART1, with downlink telemetry enabled.
 param set-default RC_CRSF_TEL_EN 1

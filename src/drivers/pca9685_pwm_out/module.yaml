@@ -69,6 +69,18 @@ parameters:
         min: 23.8
         max: 1525.87
         default: 50.0
+      PCA9685_CH_COUNT:
+        description:
+          short: Number of active output channels
+          long: |
+            Limits each I2C output transfer to the first configured channels.
+            Reducing this value lowers output latency and I2C bandwidth usage
+            when high update rates are required. All enabled actuator functions
+            must be within this channel range.
+        type: int32
+        min: 1
+        max: 16
+        default: 16
       PCA9685_DUTY_EN:
         description:
           short: Put the selected channels into Duty-Cycle output mode

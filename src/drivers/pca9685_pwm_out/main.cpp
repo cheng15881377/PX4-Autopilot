@@ -104,8 +104,10 @@ private:
 
 	float param_pwm_freq, previous_pwm_freq;
 	float param_schd_rate, previous_schd_rate;
+	int32_t param_channel_count{PCA9685_PWM_CHANNEL_COUNT};
 	bool param_update_failed = false;
 	uint32_t param_duty_mode;
+	hrt_abstime _last_register_check{0};
 
 	static constexpr uint8_t _transfer_fails_threshold = 10;
 	uint8_t _register_transfer_fails = 0;
@@ -160,6 +162,13 @@ bool PCA9685Wrapper::updateOutputs(float outputs[MAX_ACTUATORS], unsigned num_ou
 
 	uint16_t low_level_outputs[PCA9685_PWM_CHANNEL_COUNT] = {};
 	num_outputs = num_outputs > PCA9685_PWM_CHANNEL_COUNT ? PCA9685_PWM_CHANNEL_COUNT : num_outputs;
+
+	// Limiting the transfer to the configured channels is important at high
+	// update rates. A full 16-channel write needlessly consumes most of the
+	// available I2C period when only the first motor outputs are in use.
+	if (param_channel_count > 0 && static_cast<unsigned>(param_channel_count) < num_outputs) {
+		num_outputs = static_cast<unsigned>(param_channel_count);
+	}
 
 	for (uint8_t i = 0; i < num_outputs; ++i) {
 		uint16_t output = static_cast<uint16_t>(lroundf(outputs[i]));
@@ -274,10 +283,17 @@ void PCA9685Wrapper::Run()
 				}
 			}
 
-			if (registers_check() != PX4_OK) {
-				_state = STATE::CONFIGURE;
-				ScheduleClear();
-				ScheduleDelayed(20_ms);
+			// Register reads are health monitoring, not part of the actuator data
+			// path. Running them on every 400 Hz cycle adds two extra I2C transfers
+			// and prevents the requested update rate from being achieved on Linux.
+			if (hrt_elapsed_time(&_last_register_check) >= 1_s) {
+				_last_register_check = hrt_absolute_time();
+
+				if (registers_check() != PX4_OK) {
+					_state = STATE::CONFIGURE;
+					ScheduleClear();
+					ScheduleDelayed(20_ms);
+				}
 			}
 
 			_mixing_output.updateSubscriptions(false);
@@ -421,12 +437,21 @@ void PCA9685Wrapper::updateParams() {
         PX4_ERR("param PCA9685_PWM_FREQ not found");
     }
 
-    param = param_find("PCA9685_DUTY_EN");
+	param = param_find("PCA9685_DUTY_EN");
     if (param != PARAM_INVALID) {
         param_get(param, (int32_t*)&param_duty_mode);
     } else {
         PX4_ERR("param PCA9685_DUTY_EN not found");
     }
+
+	param = param_find("PCA9685_CH_COUNT");
+
+	if (param != PARAM_INVALID) {
+		param_get(param, &param_channel_count);
+
+	} else {
+		PX4_ERR("param PCA9685_CH_COUNT not found");
+	}
 }
 
 extern "C" __EXPORT int pca9685_pwm_out_main(int argc, char *argv[]){
