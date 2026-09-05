@@ -3,11 +3,11 @@
 # EmbedFire LubanCat RK3588 prototype defaults.
 #------------------------------------------------------------------------------
 
-# The ICM42688P provides only accelerometer and gyroscope data. Disable the
-# magnetometer and barometer requirements until separate sensors are fitted.
-param set-default SYS_HAS_MAG 0
-param set-default SYS_HAS_BARO 0
-param set-default EKF2_MAG_TYPE 5
+# The ICM42688P provides accelerometer and gyroscope data. The external MS5611
+# provides barometer data and the MG-902 provides an external magnetometer.
+param set-default SYS_HAS_MAG 1
+param set-default SYS_HAS_BARO 1
+param set-default EKF2_MAG_TYPE 0
 
 # PCA9685 defaults: /dev/i2c-4, address 0x40.
 param set-default PCA9685_EN_BUS 4
