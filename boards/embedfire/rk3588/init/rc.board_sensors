@@ -15,22 +15,22 @@ then
 	echo "MS5611 not found on /dev/i2c-2 address 0x77"
 fi
 
-# QMC5883L inside the MG-902 on I2C bus 8, address 0x0d. Rotation 2 is
-# YAW_90, as required when the MG-902 arrow is mounted pointing forward.
-if ! qmc5883l start -X -b 8 -a 0x0d -R 2
+# QMC5883L inside the MG-A01 on I2C bus 8, address 0x0d. The module is
+# mounted 180 degrees from the nose, which requires ROTATION_ROLL_180 (8).
+if ! qmc5883l start -X -b 8 -a 0x0d -R 8
 then
-	echo "MG-902 QMC5883L not found on /dev/i2c-8 address 0x0d"
+	echo "MG-A01 QMC5883L not found on /dev/i2c-8 address 0x0d"
 fi
 
-# MicoAir MG-902 GNSS on UART3, factory configured for UBX NAV-PVT at 115200.
+# MicoAir MG-A01 GNSS on UART3, factory configured for UBX NAV-PVT at 115200.
 if [ -c /dev/ttyS3 ]
 then
 	if ! gps start -d /dev/ttyS3 -b 115200 -p ubx
 	then
-		echo "MG-902 GPS failed to start on /dev/ttyS3"
+		echo "MG-A01 GPS failed to start on /dev/ttyS3"
 	fi
 else
-	echo "MG-902 GPS device /dev/ttyS3 not found"
+	echo "MG-A01 GPS device /dev/ttyS3 not found"
 fi
 
 # Keep actuator traffic on a separate I2C controller.

@@ -34,7 +34,7 @@
 #include <px4_arch/i2c_hw_description.h>
 
 // External buses enabled by the LubanCat-5 V2 device-tree overlays.
-// I2C2 is used by the MS5611, I2C8 by the MG-902 magnetometer, and I2C4 is
+// I2C2 is used by the MS5611, I2C8 by the MG-A01 magnetometer, and I2C4 is
 // kept dedicated to actuator output.
 constexpr px4_i2c_bus_t px4_i2c_buses[I2C_BUS_MAX_BUS_ITEMS] = {
 	initI2CBusExternal(2),

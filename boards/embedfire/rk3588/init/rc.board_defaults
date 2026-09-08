@@ -4,7 +4,7 @@
 #------------------------------------------------------------------------------
 
 # The ICM42688P provides accelerometer and gyroscope data. The external MS5611
-# provides barometer data and the MG-902 provides an external magnetometer.
+# provides barometer data and the MG-A01 provides an external magnetometer.
 param set-default SYS_HAS_MAG 1
 param set-default SYS_HAS_BARO 1
 param set-default EKF2_MAG_TYPE 0
