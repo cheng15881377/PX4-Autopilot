@@ -11,13 +11,16 @@ kernel's device tree before real hardware is used:
 | Function | Prototype mapping |
 | --- | --- |
 | IMU | ICM42688P on SPI0 CS0 (`/dev/spidev0.0`) |
-| Motor output | PCA9685 on `/dev/i2c-4`, address `0x40` |
-| RC input | UART1 on `/dev/ttyS1` (receiver protocol dependent) |
+| Barometer | MS5611 on `/dev/i2c-2`, address `0x77` |
+| MG-A01 magnetometer | QMC5883L on `/dev/i2c-4`, address `0x0d` |
+| MG-A01 GNSS | UART1 on `/dev/ttyS1`, UBX at 115200 baud |
+| Motor output | PCA9685 on `/dev/i2c-8`, address `0x40` (pins 33/35) |
+| RC input | CRSF on UART3 `/dev/ttyS3` (pins 3/5) |
 
 The LubanCat-5 V2 boot configuration must enable the `spi0-m1` GPIO chip-select,
-`i2c4-m3`, and `uart1-m1` overlays. Update `src/spi.cpp`, `src/i2c.cpp`,
-`init/rc.board_sensors`, and `init/rc.board_extras` if the target kernel exposes
-different device numbers.
+`i2c2-m0`, `i2c4-m3`, `i2c8-m2`, `uart1-m1`, and `uart3-m0` overlays. Update
+`src/spi.cpp`, `src/i2c.cpp`, `init/rc.board_sensors`, and
+`init/rc.board_extras` if the target kernel exposes different device numbers.
 
 ## Cross-compile
 

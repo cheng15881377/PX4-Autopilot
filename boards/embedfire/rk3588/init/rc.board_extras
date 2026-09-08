@@ -1,14 +1,15 @@
 #!/bin/sh
 #
-# EmbedFire LubanCat RK3588 prototype receiver initialization.
+# EmbedFire LubanCat RK3588 prototype runtime initialization.
 #------------------------------------------------------------------------------
 
-# ExpressLRS receiver using bidirectional CRSF on UART1 (/dev/ttyS1).
-if [ -c /dev/ttyS1 ]
+# ExpressLRS receiver moved to UART3 (/dev/ttyS3, physical header pins 3/5)
+# because UART1 is now used by the MG-A01 GNSS.
+if [ -c /dev/ttyS3 ]
 then
-	crsf_rc start -d /dev/ttyS1
+	crsf_rc start -d /dev/ttyS3
 else
-	echo "CRSF input device /dev/ttyS1 not found"
+	echo "CRSF input device /dev/ttyS3 not found"
 fi
 
 rc_update start

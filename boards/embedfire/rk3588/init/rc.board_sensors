@@ -15,26 +15,29 @@ then
 	echo "MS5611 not found on /dev/i2c-2 address 0x77"
 fi
 
-# QMC5883L inside the MG-A01 on I2C bus 8, address 0x0d. The module is
-# mounted 180 degrees from the nose, which requires ROTATION_ROLL_180 (8).
-if ! qmc5883l start -X -b 8 -a 0x0d -R 8
+# QMC5883L inside the MG-A01 on I2C bus 4, address 0x0d. Use 50 kHz for
+# better signal margin. The module is mounted 180 degrees from the nose,
+# which requires ROTATION_ROLL_180 (8).
+if ! qmc5883l start -X -b 4 -a 0x0d -f 50 -R 8
 then
-	echo "MG-A01 QMC5883L not found on /dev/i2c-8 address 0x0d"
+	echo "MG-A01 QMC5883L not found on /dev/i2c-4 address 0x0d"
 fi
 
-# MicoAir MG-A01 GNSS on UART3, factory configured for UBX NAV-PVT at 115200.
-if [ -c /dev/ttyS3 ]
+# MicoAir MG-A01 GNSS on UART1, factory configured for UBX NAV-PVT at 115200.
+# UART1 is reserved for this test, so the CRSF receiver must not be started.
+if [ -c /dev/ttyS1 ]
 then
-	if ! gps start -d /dev/ttyS3 -b 115200 -p ubx
+	if ! gps start -d /dev/ttyS1 -b 115200 -p ubx
 	then
-		echo "MG-A01 GPS failed to start on /dev/ttyS3"
+		echo "MG-A01 GPS failed to start on /dev/ttyS1"
 	fi
 else
-	echo "MG-A01 GPS device /dev/ttyS3 not found"
+	echo "MG-A01 GPS device /dev/ttyS1 not found"
 fi
 
-# Keep actuator traffic on a separate I2C controller.
-if ! pca9685_pwm_out start -b 4 -a 0x40
+# PCA9685 output moved to I2C bus 8 (physical header pins 33/35) while the
+# MG-A01 magnetometer uses I2C bus 4.
+if ! pca9685_pwm_out start -b 8 -a 0x40
 then
-	echo "PCA9685 not found on /dev/i2c-4 address 0x40"
+	echo "PCA9685 not found on /dev/i2c-8 address 0x40"
 fi
