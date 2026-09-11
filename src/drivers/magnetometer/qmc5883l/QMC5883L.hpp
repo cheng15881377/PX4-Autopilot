@@ -71,17 +71,23 @@ private:
 		uint8_t clear_bits{0};
 	};
 
+	enum class RegisterCheckResult : uint8_t {
+		SUCCESS,
+		MISMATCH,
+		TRANSFER_ERROR,
+	};
+
 	int probe() override;
 
 	bool Reset();
 
 	bool Configure();
 
-	bool RegisterCheck(const register_config_t &reg_cfg);
+	RegisterCheckResult RegisterCheck(const register_config_t &reg_cfg);
 
-	uint8_t RegisterRead(Register reg);
-	void RegisterWrite(Register reg, uint8_t value);
-	void RegisterSetAndClearBits(Register reg, uint8_t setbits, uint8_t clearbits);
+	bool RegisterRead(Register reg, uint8_t &value);
+	bool RegisterWrite(Register reg, uint8_t value);
+	bool RegisterSetAndClearBits(Register reg, uint8_t setbits, uint8_t clearbits);
 
 	PX4Magnetometer _px4_mag;
 
@@ -92,6 +98,7 @@ private:
 	hrt_abstime _reset_timestamp{0};
 	hrt_abstime _last_config_check_timestamp{0};
 	int _failure_count{0};
+	uint8_t _register_check_failure_count{0};
 
 	int16_t _prev_data[3] {};
 
@@ -103,6 +110,8 @@ private:
 	} _state{STATE::RESET};
 
 	uint8_t _checked_register{0};
+	static constexpr int MAX_FAILURE_COUNT{10};
+	static constexpr uint8_t MAX_REGISTER_CHECK_FAILURE_COUNT{3};
 	static constexpr uint8_t size_register_cfg{3};
 	register_config_t _register_cfg[size_register_cfg] {
 		// Register                   | Set bits, Clear bits
