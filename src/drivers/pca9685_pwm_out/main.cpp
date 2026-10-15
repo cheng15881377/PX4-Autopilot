@@ -102,15 +102,15 @@ private:
 		true
 	};
 
-	float param_pwm_freq, previous_pwm_freq;
-	float param_schd_rate, previous_schd_rate;
+	float param_pwm_freq{50.f}, previous_pwm_freq{0.f};
 	int32_t param_channel_count{PCA9685_PWM_CHANNEL_COUNT};
 	bool param_update_failed = false;
-	uint32_t param_duty_mode;
+	uint32_t param_duty_mode{0};
 	hrt_abstime _last_register_check{0};
+	hrt_abstime _register_transfer_failure_start{0};
 
-	static constexpr uint8_t _transfer_fails_threshold = 10;
-	uint8_t _register_transfer_fails = 0;
+	static constexpr hrt_abstime REGISTER_CHECK_INTERVAL{100_ms};
+	static constexpr hrt_abstime REGISTER_TRANSFER_FAILURE_TIMEOUT{100_ms};
 
 	void Run() override;
 	int registers_check();
@@ -227,9 +227,10 @@ void PCA9685Wrapper::Run()
 
 			if (ret == PX4_OK) {
 				previous_pwm_freq = param_pwm_freq;
-				previous_schd_rate = param_schd_rate;
+				_register_transfer_failure_start = 0;
+				_last_register_check = 0;
 				_state = STATE::RUNNING;
-				ScheduleOnInterval(1000000 / param_schd_rate, 0);
+				ScheduleOnInterval(1000000 / param_pwm_freq, 0);
 
 			} else {
 				perf_count(_comms_errors);
@@ -262,11 +263,9 @@ void PCA9685Wrapper::Run()
 					ret |= pca9685->wake();
 
 					if (ret == PX4_OK) {
-						// update of PWM freq will always trigger scheduling change
 						param_update_failed = false;
-						previous_schd_rate = param_schd_rate;
 						previous_pwm_freq = param_pwm_freq;
-						ScheduleOnInterval(1000000 / param_schd_rate, 0);
+						ScheduleOnInterval(1000000 / param_pwm_freq, 0);
 
 					} else {
 						param_update_failed = true;
@@ -274,19 +273,14 @@ void PCA9685Wrapper::Run()
 						ScheduleDelayed(20_ms);
 						break;
 					}
-
-				} else if ((float)fabs(previous_schd_rate - param_schd_rate) > 0.01f) {
-					// case when PWM freq not changed but scheduling rate does
-					previous_schd_rate = param_schd_rate;
-					ScheduleClear();
-					ScheduleOnInterval(1000000 / param_schd_rate, 1000000 / param_schd_rate);
 				}
 			}
 
-			// Register reads are health monitoring, not part of the actuator data
-			// path. Running them on every 400 Hz cycle adds two extra I2C transfers
-			// and prevents the requested update rate from being achieved on Linux.
-			if (hrt_elapsed_time(&_last_register_check) >= 1_s) {
+			// Avoid two extra I2C reads on every output update. Recheck on each
+			// scheduled cycle after a transfer error so recovery is not delayed
+			// by the normal health-check interval.
+			if (_register_transfer_failure_start != 0
+			    || hrt_elapsed_time(&_last_register_check) >= REGISTER_CHECK_INTERVAL) {
 				_last_register_check = hrt_absolute_time();
 
 				if (registers_check() != PX4_OK) {
@@ -309,20 +303,24 @@ int PCA9685Wrapper::registers_check()
 	int reg_ret = pca9685->registers_check();
 
 	if (reg_ret == -EIO) {
-		_register_transfer_fails++;
+		perf_count(_comms_errors);
+
+		if (_register_transfer_failure_start == 0) {
+			_register_transfer_failure_start = hrt_absolute_time();
+		}
+
+		if (hrt_elapsed_time(&_register_transfer_failure_start) >= REGISTER_TRANSFER_FAILURE_TIMEOUT) {
+			perf_count(_registers_transfer_reset);
+			_register_transfer_failure_start = 0;
+			return PX4_ERROR;
+		}
 
 	} else {
-		_register_transfer_fails = 0;
+		_register_transfer_failure_start = 0;
 	}
 
 	if (reg_ret == -EFAULT) {
 		perf_count(_registers_invalid_reset);
-		return PX4_ERROR;
-	}
-
-	if (_register_transfer_fails > _transfer_fails_threshold) {
-		perf_count(_registers_transfer_reset);
-		_register_transfer_fails = 0;
 		return PX4_ERROR;
 	}
 
@@ -423,14 +421,8 @@ int PCA9685Wrapper::task_spawn(int argc, char **argv) {
 void PCA9685Wrapper::updateParams() {
     ModuleParams::updateParams();
 
-    param_t param = param_find("PCA9685_SCHD_HZ");
-    if (param != PARAM_INVALID) {
-        param_get(param, &param_schd_rate);
-    } else {
-        PX4_ERR("param PCA9685_SCHD_HZ not found");
-    }
-
-    param = param_find("PCA9685_PWM_FREQ");
+    // sets both the PWM frequency of the chip and the rate we push new values at
+    param_t param = param_find("PCA9685_PWM_FREQ");
     if (param != PARAM_INVALID) {
         param_get(param, &param_pwm_freq);
     } else {

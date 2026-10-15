@@ -14,7 +14,6 @@ param set-default PCA9685_EN_BUS 8
 param set-default PCA9685_I2C_ADDR 64
 param set-default PCA9685_CH_COUNT 4
 param set-default PCA9685_PWM_FREQ 400
-param set-default PCA9685_SCHD_HZ 400
 
 # ExpressLRS CRSF receiver on UART3, with downlink telemetry enabled.
 param set-default RC_CRSF_TEL_EN 1

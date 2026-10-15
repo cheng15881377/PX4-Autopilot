@@ -318,12 +318,12 @@ public:
 	 */
 	void             	send_finish();
 
-	/**
-	 * Resend message as is, don't change sequence number and CRC.
-	 */
-	void			resend_message(mavlink_message_t *msg) { _mavlink_resend_uart(_channel, msg); }
-
 	void			handle_message(const mavlink_message_t *msg);
+
+	/**
+	 * Forward a received message to the other instances if forwarding is enabled.
+	 */
+	void			forward_if_enabled(const mavlink_message_t *msg);
 
 	int			get_instance_id() const { return _instance_id; }
 
@@ -586,7 +586,7 @@ private:
 
 	List<MavlinkStream *>		_streams;
 
-	MavlinkShell		*_mavlink_shell{nullptr};
+	px4::atomic<MavlinkShell *>	_mavlink_shell{nullptr}; ///< written by the receiver thread under _mavlink_shell_mutex; atomic for the unlocked fast check in handleMavlinkShellOutput()
 	pthread_mutex_t		_mavlink_shell_mutex{};
 	MavlinkULog		*_mavlink_ulog{nullptr};
 	static events::EventBuffer	*_event_buffer;

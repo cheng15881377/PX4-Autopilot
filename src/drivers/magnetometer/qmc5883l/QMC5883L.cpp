@@ -121,34 +121,34 @@ void QMC5883L::RunImpl()
 		break;
 
 	case STATE::WAIT_FOR_RESET: {
-		uint8_t chip_id{};
-		uint8_t cntl2{};
+			uint8_t chip_id{};
+			uint8_t cntl2{};
 
-		// SOFT_RST: This bit is automatically reset to zero after POR routine
-		if (RegisterRead(Register::CHIP_ID, chip_id)
-		    && RegisterRead(Register::CNTL2, cntl2)
-		    && (chip_id == Chip_ID)
-		    && ((cntl2 & CNTL2_BIT::SOFT_RST) == 0)) {
+			// SOFT_RST: This bit is automatically reset to zero after POR routine
+			if (RegisterRead(Register::CHIP_ID, chip_id)
+			    && RegisterRead(Register::CNTL2, cntl2)
+			    && (chip_id == Chip_ID)
+			    && ((cntl2 & CNTL2_BIT::SOFT_RST) == 0)) {
 
-			// if reset succeeded then configure
-			_state = STATE::CONFIGURE;
-			ScheduleDelayed(10_ms);
-
-		} else {
-			// RESET not complete
-			if (hrt_elapsed_time(&_reset_timestamp) > 1000_ms) {
-				PX4_DEBUG("Reset failed, retrying");
-				_state = STATE::RESET;
-				ScheduleDelayed(100_ms);
+				// if reset succeeded then configure
+				_state = STATE::CONFIGURE;
+				ScheduleDelayed(10_ms);
 
 			} else {
-				PX4_DEBUG("Reset not complete, check again in 10 ms");
-				ScheduleDelayed(10_ms);
-			}
-		}
+				// RESET not complete
+				if (hrt_elapsed_time(&_reset_timestamp) > 1000_ms) {
+					PX4_DEBUG("Reset failed, retrying");
+					_state = STATE::RESET;
+					ScheduleDelayed(100_ms);
 
-		break;
-	}
+				} else {
+					PX4_DEBUG("Reset not complete, check again in 10 ms");
+					ScheduleDelayed(10_ms);
+				}
+			}
+
+			break;
+		}
 
 	case STATE::CONFIGURE:
 		if (Configure()) {
