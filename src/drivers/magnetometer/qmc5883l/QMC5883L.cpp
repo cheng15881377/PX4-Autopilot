@@ -93,9 +93,9 @@ int QMC5883L::probe()
 		uint8_t buffer{};
 
 		if (transfer(&cmd, 1, &buffer, 1) == PX4_OK) {
-			const uint8_t CHIP_ID = RegisterRead(Register::CHIP_ID);
+			uint8_t chip_id{};
 
-			if (CHIP_ID == Chip_ID) {
+			if (RegisterRead(Register::CHIP_ID, chip_id) && (chip_id == Chip_ID)) {
 				return PX4_OK;
 			}
 		}
@@ -114,16 +114,21 @@ void QMC5883L::RunImpl()
 		RegisterWrite(Register::CNTL2, CNTL2_BIT::SOFT_RST);
 		_reset_timestamp = now;
 		_failure_count = 0;
+		_register_check_failure_count = 0;
 		_state = STATE::WAIT_FOR_RESET;
 		perf_count(_reset_perf);
 		ScheduleDelayed(100_ms); // POR Completion Time
 		break;
 
-	case STATE::WAIT_FOR_RESET:
+	case STATE::WAIT_FOR_RESET: {
+		uint8_t chip_id{};
+		uint8_t cntl2{};
 
 		// SOFT_RST: This bit is automatically reset to zero after POR routine
-		if ((RegisterRead(Register::CHIP_ID) == Chip_ID)
-		    && ((RegisterRead(Register::CNTL2) & CNTL2_BIT::SOFT_RST) == 0)) {
+		if (RegisterRead(Register::CHIP_ID, chip_id)
+		    && RegisterRead(Register::CNTL2, cntl2)
+		    && (chip_id == Chip_ID)
+		    && ((cntl2 & CNTL2_BIT::SOFT_RST) == 0)) {
 
 			// if reset succeeded then configure
 			_state = STATE::CONFIGURE;
@@ -143,6 +148,7 @@ void QMC5883L::RunImpl()
 		}
 
 		break;
+	}
 
 	case STATE::CONFIGURE:
 		if (Configure()) {
@@ -216,22 +222,29 @@ void QMC5883L::RunImpl()
 				_failure_count++;
 
 				// full reset if things are failing consistently
-				if (_failure_count > 10) {
+				if (_failure_count > MAX_FAILURE_COUNT) {
 					Reset();
 					return;
 				}
 			}
 
-			if (!success || hrt_elapsed_time(&_last_config_check_timestamp) > 100_ms) {
-				// check configuration registers periodically or immediately following any failure
-				if (RegisterCheck(_register_cfg[_checked_register])) {
-					_last_config_check_timestamp = now;
-					_checked_register = (_checked_register + 1) % size_register_cfg;
+			if (hrt_elapsed_time(&_last_config_check_timestamp) > 100_ms) {
+				// Check configuration registers periodically. A failed data transfer is not a reliable
+				// indication that the configuration changed, and immediately reading again can compound
+				// a transient bus error.
+				_last_config_check_timestamp = now;
+				const RegisterCheckResult result = RegisterCheck(_register_cfg[_checked_register]);
 
-				} else {
-					// register check failed, force reset
+				if (result == RegisterCheckResult::SUCCESS) {
+					_checked_register = (_checked_register + 1) % size_register_cfg;
+					_register_check_failure_count = 0;
+
+				} else if (result == RegisterCheckResult::MISMATCH) {
 					perf_count(_bad_register_perf);
-					Reset();
+
+					if (++_register_check_failure_count >= MAX_REGISTER_CHECK_FAILURE_COUNT) {
+						Reset();
+					}
 				}
 			}
 		}
@@ -244,14 +257,16 @@ bool QMC5883L::Configure()
 {
 	// first set and clear all configured register bits
 	for (const auto &reg_cfg : _register_cfg) {
-		RegisterSetAndClearBits(reg_cfg.reg, reg_cfg.set_bits, reg_cfg.clear_bits);
+		if (!RegisterSetAndClearBits(reg_cfg.reg, reg_cfg.set_bits, reg_cfg.clear_bits)) {
+			return false;
+		}
 	}
 
 	// now check that all are configured
 	bool success = true;
 
 	for (const auto &reg_cfg : _register_cfg) {
-		if (!RegisterCheck(reg_cfg)) {
+		if (RegisterCheck(reg_cfg) != RegisterCheckResult::SUCCESS) {
 			success = false;
 		}
 	}
@@ -262,45 +277,64 @@ bool QMC5883L::Configure()
 	return success;
 }
 
-bool QMC5883L::RegisterCheck(const register_config_t &reg_cfg)
+QMC5883L::RegisterCheckResult QMC5883L::RegisterCheck(const register_config_t &reg_cfg)
 {
-	bool success = true;
+	uint8_t reg_value{};
 
-	const uint8_t reg_value = RegisterRead(reg_cfg.reg);
+	if (!RegisterRead(reg_cfg.reg, reg_value)) {
+		return RegisterCheckResult::TRANSFER_ERROR;
+	}
 
 	if (reg_cfg.set_bits && ((reg_value & reg_cfg.set_bits) != reg_cfg.set_bits)) {
 		PX4_DEBUG("0x%02hhX: 0x%02hhX (0x%02hhX not set)", (uint8_t)reg_cfg.reg, reg_value, reg_cfg.set_bits);
-		success = false;
+		return RegisterCheckResult::MISMATCH;
 	}
 
 	if (reg_cfg.clear_bits && ((reg_value & reg_cfg.clear_bits) != 0)) {
 		PX4_DEBUG("0x%02hhX: 0x%02hhX (0x%02hhX not cleared)", (uint8_t)reg_cfg.reg, reg_value, reg_cfg.clear_bits);
-		success = false;
+		return RegisterCheckResult::MISMATCH;
 	}
 
-	return success;
+	return RegisterCheckResult::SUCCESS;
 }
 
-uint8_t QMC5883L::RegisterRead(Register reg)
+bool QMC5883L::RegisterRead(Register reg, uint8_t &value)
 {
 	const uint8_t cmd = static_cast<uint8_t>(reg);
-	uint8_t buffer{};
-	transfer(&cmd, 1, &buffer, 1);
-	return buffer;
+
+	if (transfer(&cmd, 1, &value, 1) != PX4_OK) {
+		perf_count(_bad_transfer_perf);
+		return false;
+	}
+
+	return true;
 }
 
-void QMC5883L::RegisterWrite(Register reg, uint8_t value)
+bool QMC5883L::RegisterWrite(Register reg, uint8_t value)
 {
 	uint8_t buffer[2] { (uint8_t)reg, value };
-	transfer(buffer, sizeof(buffer), nullptr, 0);
+
+	if (transfer(buffer, sizeof(buffer), nullptr, 0) != PX4_OK) {
+		perf_count(_bad_transfer_perf);
+		return false;
+	}
+
+	return true;
 }
 
-void QMC5883L::RegisterSetAndClearBits(Register reg, uint8_t setbits, uint8_t clearbits)
+bool QMC5883L::RegisterSetAndClearBits(Register reg, uint8_t setbits, uint8_t clearbits)
 {
-	const uint8_t orig_val = RegisterRead(reg);
+	uint8_t orig_val{};
+
+	if (!RegisterRead(reg, orig_val)) {
+		return false;
+	}
+
 	uint8_t val = (orig_val & ~clearbits) | setbits;
 
 	if (orig_val != val) {
-		RegisterWrite(reg, val);
+		return RegisterWrite(reg, val);
 	}
+
+	return true;
 }
