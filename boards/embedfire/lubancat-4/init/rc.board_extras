@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# Original EmbedFire LubanCat-4 runtime initialization.
+#------------------------------------------------------------------------------
+
+# BAYCKRC ExpressLRS on UART6-M1: board TX pin 11 -> receiver RX,
+# board RX pin 7 <- receiver TX. CRSF uses non-inverted 3.3 V UART signals.
+if [ -c /dev/ttyS6 ]
+then
+	if ! crsf_rc start -d /dev/ttyS6
+	then
+		echo "BAYCKRC CRSF failed to start on /dev/ttyS6"
+	fi
+else
+	echo "CRSF input device /dev/ttyS6 not found"
+fi
+
+rc_update start

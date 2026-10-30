@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# Original EmbedFire LubanCat-4 sensor and actuator initialization.
+#------------------------------------------------------------------------------
+
+# ICM42688P on SPI bus 0, chip select 0 (/dev/spidev0.0), no board rotation.
+if ! icm42688p start -s -b 0 -c 0 -R 0
+then
+	echo "ICM42688P not found on /dev/spidev0.0"
+fi
+
+# MS5611 on I2C6-M3: SDA pin 27, SCL pin 28. PS high selects I2C;
+# CSB low selects the 7-bit address 0x77. These are hardware connections.
+if ! ms5611 start -X -b 6 -a 0x77
+then
+	echo "MS5611 not found on /dev/i2c-6 address 0x77"
+fi
+
+# QMC5883L inside the MG-A01 on I2C5-M3: SDA pin 3, SCL pin 5.
+# Retain the previous module mounting rotation, ROTATION_ROLL_180 (8).
+# Wiring does not determine orientation: verify this after remounting.
+if ! qmc5883l start -X -b 5 -a 0x0d -f 50 -R 8
+then
+	echo "MG-A01 QMC5883L not found on /dev/i2c-5 address 0x0d"
+fi
+
+# MG-A01 GNSS on UART0-M2: board TX pin 8 -> GNSS RX,
+# board RX pin 10 <- GNSS TX. UBX NAV-PVT at 115200 baud.
+if [ -c /dev/ttyS0 ]
+then
+	if ! gps start -d /dev/ttyS0 -b 115200 -p ubx
+	then
+		echo "MG-A01 GNSS failed to start on /dev/ttyS0"
+	fi
+else
+	echo "MG-A01 GNSS device /dev/ttyS0 not found"
+fi
+
+# PCA9685 on I2C8-M2: SDA pin 32, SCL pin 12, address 0x40.
+if ! pca9685_pwm_out start -b 8 -a 0x40
+then
+	echo "PCA9685 not found on /dev/i2c-8 address 0x40"
+fi

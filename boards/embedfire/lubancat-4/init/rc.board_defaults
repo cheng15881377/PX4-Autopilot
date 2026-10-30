@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# Original EmbedFire LubanCat-4 prototype defaults.
+#------------------------------------------------------------------------------
+
+# The ICM42688P provides accelerometer and gyroscope data. The external MS5611
+# provides barometer data and the MG-A01 provides an external magnetometer.
+param set-default SYS_HAS_MAG 1
+param set-default SYS_HAS_BARO 1
+param set-default EKF2_MAG_TYPE 0
+
+# PCA9685 on /dev/i2c-8, address 0x40; four conventional PWM ESC outputs.
+param set-default PCA9685_EN_BUS 8
+param set-default PCA9685_I2C_ADDR 64
+param set-default PCA9685_CH_COUNT 4
+param set-default PCA9685_PWM_FREQ 400
+
+# BAYCKRC ExpressLRS CRSF on UART6, with downlink telemetry enabled.
+param set-default RC_CRSF_TEL_EN 1
+
+# MTF-01P on UART7 uses MAVLink_px4 (115200 baud). Start in MAVLink 1
+# for module auto-detection; each link can auto-upgrade if it receives v2.
+param set-default MAV_PROTO_VER 1
+param set-default SENS_FLOW_ROT 0
+param set-default EKF2_OF_CTRL 1
+
+# Keep conditional range aiding. Do not switch the height reference or
+# disable GNSS/barometer fusion merely because a flow sensor is connected.
+param set-default EKF2_RNG_CTRL 1
